@@ -40,7 +40,7 @@ umd_courses <- read_rds("lab_01.rds")
 ## Answer questions
 
 **Q1** Which department has the highest mean (average) number of seats for its classes? You need to show the department with the highest average first. Which one is the most surprising/interesting to you?
-**A1**Engineering, Cooperative Education has the highest mean number of seats at 306.666667. 
+**A1**Engineering, Cooperative Education has the highest mean number of seats at 306.666667. The most surprising result to me is Air Science because I don't know what Air Science is. 
 
 ```{r}
 umd_courses |>
@@ -66,11 +66,13 @@ umd_courses |>
 **Q3** Count the number of courses for each instructor and department. Which instructor has taught the most? **A3**
 Two apparent outliers lead the group, with "NA" listed as the instructor for 10,996 classes and "Instructor: TBA" with 764 classes. But the first real person appears to be Elsa Barkley Brown with 73 courses offered in the dataset. 
 
+=
+
 ```{r}
 umd_courses |>
   group_by(instructors) |>
   summarise(
-    count_classes = n(),
+    count_classes = n()
   ) |>
   arrange(desc(count_classes))
 ```
