@@ -64,7 +64,7 @@ md_expenses
    4. When you are done standardizing `payee_clean`, export it as a new CSV file to your data folder, *giving it a different name* and read it back into RStudio as a new dataframe.
    5. Using that `payee_clean` column in your new dataframe, calculate the total amount of Facebook spending by each committee and present the results showing the committee that spent the most first.
 
-**A1.** See below, the committee "Jain Ashwani Friends of" spent $62357.38 on Facebook. 	
+**A1.** See below, the committee "Jain Ashwani Friends of" spent $62,357.38 on Facebook. Sorry, I could not figure out how to exclude NA payees in the time allotted. I found some online articles about omit() and omit.na() functions and took a few cracks at it. I just couldn't finess it in the time given so I decided to move on. 
 
 ```{r}
 
@@ -124,4 +124,4 @@ online_ads
 
 **Q5** Your editor asks you to summarize your findings about spending on Facebook by Maryland political candidates. How much do we know and what don't we know? What's the best story idea you've found here?
 
-**A5**
+**A5** It looks like the big winners in the gubernatorial race did not shell out big bucks for Facebook ads. Or, if they did, they did it through a media consultant group. Moore's successful ticket spent over six million dollars on their consultant firm, SKDK. Maybe the take home there is to hire professionals to manage your media spend instead of chucking money nonstop at Facebook ads (I'm looking at you Jain Ashwani). 
