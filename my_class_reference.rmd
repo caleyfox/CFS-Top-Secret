@@ -53,3 +53,37 @@ dataframe %>%
   group_by(some_column) %>% 
   summarize(count = n())
 ```
+
+How to export FROM R Studio 
+
+write_csv
+
+How to mutate a date from <chr> to <date>  
+```{r}
+
+md_expenses <- md_expenses |> mutate(expenditure_date = mdy(expenditure_date))
+
+
+```
+
+remove all entries where column (payee_name in this case) has NA values 
+
+```{r}
+md_expenses |> filter(!is.na(payee_name))
+```
+
+if you DID want to see all the ones where the payee is NA, you'd remove the ! 
+```{r}
+md_expenses |> filter(is.na(payee_name))
+
+```
+
+or use drop_na()
+```{r}
+dataset |> 
+  drop_na(payee_name)
+```
+
+NA is not LITERALLY what the value is, which is why you can't str_detect(payee_name = "NA"). NA is a special designation by R, a lack of value in the cell. It is greyed out in the dataset for this reason. 
+
+ALWAYS TELL CHAT GPT THAT YOU ARE WORKING IN THE TIDYVERSE! SO it doesn't give you random code from other libraries. 

@@ -1,0 +1,237 @@
+---
+title: "week7_recap"
+author: "Caley Fox Shannon"
+date: "2023-10-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Turn off scientific notation
+options(scipen=999)
+```
+
+## Loading the packages
+
+Run the codeblock below to load the packages we will need for this recap
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(janitor)
+```
+
+## Load Data
+
+Run the codeblock below to load the data.
+
+```{r}
+earthquakes <- read_csv('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.csv')
+
+#Setting time column as datetime
+earthquakes <- earthquakes |> mutate(time = as_datetime(time))
+```
+
+#### Answer the questions below 
+
+Most questions have a code block and a space for an answer below. Write the code you think is necessary and, in the answer space, write out what you did and what was the result.
+
+------------------------------------------------------------------------
+
+#### **Q1** Look at the earthquakes dataset. Finish the sentence below as if you were explaining the data to someone who had not seen it before but needs to know about it.
+
+**A1:** This dataset captures information about seismic events (i.e. earthquakes, explosions) that have been recorded over the last month, and it is updated in real time. 
+
+------------------------------------------------------------------------
+
+#### **Q2** How many records there are there in this dataset? What do they mean and what useful information we can gather from it, looking at the columns?
+
+**A2:** There are 9,774 rows in this dataset. We have 22 different columns with pieces of information about each event, including the location, time, magnitude and other characteristics. 
+
+------------------------------------------------------------------------
+
+#### **Q3** How do I reorganize this data to see the ones that are the deepest first? What is the depth that shows up for the deepest one, and its magnitude?
+
+```{r}
+
+earthquakes |> 
+  arrange(desc(depth))
+
+```
+
+**A3:** On September 18th there was an earthquake with a depth of 670 feet.  
+
+------------------------------------------------------------------------
+
+#### **Q4** I just want to see the earthquakes with a magnitude larger than 6. How do I do that? And how many are there that fit this criteria?
+
+```{r}
+
+earthquakes |> 
+  filter(type =="earthquake") |> 
+  filter(mag> 6)
+
+```
+
+**A4:** There are 13 earthquakes in the dataset that has a magnitude more than 6. 
+
+------------------------------------------------------------------------
+
+#### **Q5** What about if I want to see earthquakes that have both a magnitude larger than 6 and a depth smaller than 20? How many are there in the data set that fit [both]{.underline} these criteria?
+
+```{r}
+
+earthquakes |> 
+  filter(type =="earthquake") |> 
+  filter(mag>6) |>
+  filter(depth<20)
+
+```
+
+**A5:** There are 6 earthquakes in the dataset with a magnitude over 6 and a depth less than 20. 
+
+------------------------------------------------------------------------
+
+#### **Q6** What about if I want to see earthquakes that either have a magnitude larger than 6 OR a depth smaller than 20? How many are there in the data set that fit [either]{.underline} these criteria?
+
+```{r}
+earthquakes |> 
+  filter(type =="earthquake") |> 
+  filter(mag> 6 | depth<20)
+
+
+```
+
+**A6:** There are 7,199 earthquakes in the dataset with a magnitude over 6 OR a depth less than 20. 
+
+------------------------------------------------------------------------
+
+#### **Q7** I'm interested in finding earthquakes that took place in Alaska. Which column should I look at? How do I use it to find all the earthquakes in Alaska? How many earthquakes took place there?
+
+```{r} 
+earthquakes |> 
+  mutate(place = str_to_upper(place)) |>
+  filter(type =="earthquake") |> 
+  filter(str_detect(place, "ALASKA") | str_detect(place, " AK")) 
+
+```
+
+**A7:** The dataset contains 3,377 earthquakes that took place in Alaska. 
+
+------------------------------------------------------------------------
+
+#### **Q8** I notice that there is a column called 'type', that seems to have different kinds of tremors. What is the best way to find what are all the possible types of tremors, and counting how many of each there are in this data set? What are the first two most common types of tremors in this data set?
+
+```{r}
+earthquakes |>
+  group_by(type) |> 
+  summarise(count = n()) |> 
+  arrange(desc(count))
+  
+
+```
+
+**A8:** The two most common types of events in the dataset are earthquakes (9,527) and quarry blasts (134). 
+
+------------------------------------------------------------------------
+
+#### **Q9** What is the average depth of the earthquake type in this data set? Is there anything that seems unusual or surprising in this finding?
+
+```{r}
+earthquakes |> 
+  filter(type =="earthquake") |>
+  summarise (avg_depth = mean(depth))
+
+```
+
+**A9:** The average depth of earthquakes in this dataset is 25.24 (I don't know what the unit of measurement is, feet?). I guess that just goes to show that lots of very small earthquakes are happening all of the time, and that big ones are probably outliers. 
+
+------------------------------------------------------------------------
+
+#### **Q10** I'm interested, in the future, to see the hours in which earthquakes happen. How can I extract the hour from the time column?
+
+```{r}
+library(lubridate)
+
+earthquakes_hourly <- earthquakes |> 
+  filter(type =="earthquake") |>
+  mutate(datetime = ymd_hms(time), hour = hour(datetime))
+
+earthquakes_hourly
+```
+
+**A10:** I was totally stumped on how to do this so I asked ChatGPT: "I am writing code in R using the tidyverse. I need to extract the hour from a column that shows both date and time, like this: 2023-10-11 16:14:28. Write me code to create a new column with the hour." And it said, "# Load the tidyverse and lubridate packages if not already loaded. 
+
+library(tidyverse)
+library(lubridate)
+
+# Your data with a column named 'datetime' containing date and time information
+# Assuming your data frame is named 'df'
+
+df <- df %>%
+  mutate(datetime = ymd_hms(datetime),  # Parse the datetime string to a datetime object
+         hour = hour(datetime))           # Extract the hour and create a new column 'hour'" 
+
+So now we have 2 new columns, datetime and hour. The hour is correctly displaying the hours in which earthquakes happen. 
+
+------------------------------------------------------------------------
+
+#### **Q11** I want to make a note of all the records in this data set that I consider serious. For my purposes, I'm thinking that all tremors that have a magnitude that is larger than 3 are serious. How do I automatically create a new column showing whether an earthquake is serious or not?
+
+```{r}
+
+earthquakes_severity <- earthquakes |> 
+  mutate(
+    severity = case_when(
+      mag>3 ~ "serious",
+      mag<=3 ~ "not serious", 
+      .default = NA
+    ))
+
+earthquakes_severity
+
+```
+
+**A11:** I used mutate and case_when to create a new column called severity, which was serious if the magnitude was over 3 and not serious if it was magnitude 3 or less. 
+
+------------------------------------------------------------------------
+
+#### **Q12** I have no idea how earthquakes work and I'm interested in seeing if there is a particular time of day in which serious earthquakes happen. How can I see that condensed in a table with all the hours in a day and all the serious earthquakes in each hour? What is the hour with fewer serious earthquakes and the one with the most serious earthquakes?
+
+```{r}
+
+earthquakes_hourly <- earthquakes_hourly |> 
+  mutate(
+    severity = case_when(
+      mag>3 ~ "serious",
+      mag<=3 ~ "not serious", 
+      .default = NA
+    ))
+
+earthquakes_hourly |>  
+  filter(severity == "serious") |> 
+  group_by(hour) |> 
+  summarise(count=n()) |> 
+  arrange(desc(count))
+```
+
+**A12**: The most serious earthquakes occur between 2 and 3 a.m, but the fewest between midnight and 1 a.m. 
+
+------------------------------------------------------------------------
+
+#### **Q13** What's another question you are interested in and how would you ask it in R?
+
+
+We wanted to look at locationSource. Which network is reporting the greatest number of events to this comprehensive dataset? It may be interesting to think about the scientists that are actually doing this work and where they are in the world. 
+
+The top contributor to this dataset is AK, the Alaska Earthquake Information Center. They have contributed 2,548 records. 
+
+
+```{r}
+
+earthquakes |> 
+  group_by(locationSource) |> 
+  summarise(count = n()) |> 
+  arrange(desc(count))
+
+```
