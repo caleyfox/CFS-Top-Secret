@@ -83,8 +83,7 @@ earthquakes |>
 
 earthquakes |> 
   filter(type =="earthquake") |> 
-  filter(mag>6) |>
-  filter(depth<20)
+  filter(mag>6 | depth<20)
 
 ```
 
@@ -155,7 +154,7 @@ library(lubridate)
 
 earthquakes_hourly <- earthquakes |> 
   filter(type =="earthquake") |>
-  mutate(datetime = ymd_hms(time), hour = hour(datetime))
+  mutate(hour = hour(time))
 
 earthquakes_hourly
 ```
@@ -184,8 +183,7 @@ earthquakes_severity <- earthquakes |>
   mutate(
     severity = case_when(
       mag>3 ~ "serious",
-      mag<=3 ~ "not serious", 
-      .default = NA
+     .default = "not serious" 
     ))
 
 earthquakes_severity
@@ -204,8 +202,7 @@ earthquakes_hourly <- earthquakes_hourly |>
   mutate(
     severity = case_when(
       mag>3 ~ "serious",
-      mag<=3 ~ "not serious", 
-      .default = NA
+      .default = "not serious"
     ))
 
 earthquakes_hourly |>  

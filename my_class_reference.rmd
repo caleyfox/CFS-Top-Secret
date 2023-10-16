@@ -49,8 +49,8 @@ wes_moore_contributions <- read_csv("https://raw.githubusercontent.com/stephenne
 You use the `n()` function to count rows, like so:
 
 ```{r}
-dataframe %>% 
-  group_by(some_column) %>% 
+dataframe |>
+  group_by(some_column) |>
   summarize(count = n())
 ```
 
@@ -87,3 +87,17 @@ dataset |>
 NA is not LITERALLY what the value is, which is why you can't str_detect(payee_name = "NA"). NA is a special designation by R, a lack of value in the cell. It is greyed out in the dataset for this reason. 
 
 ALWAYS TELL CHAT GPT THAT YOU ARE WORKING IN THE TIDYVERSE! SO it doesn't give you random code from other libraries. 
+
+
+Extract an hour from a time column and create a new column called hour 
+```{r}
+earthquakes_hourly <- earthquakes |> 
+  mutate(hour = hour(time))
+```
+
+Renaming a column nameusing rename ()
+
+```{r}
+dataset |> 
+  rename(new_column_name = old_column_name)
+```
