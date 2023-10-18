@@ -101,3 +101,13 @@ Renaming a column nameusing rename ()
 dataset |> 
   rename(new_column_name = old_column_name)
 ```
+
+Replace or change the contents of a column, you're using mutate. 
+
+str_replace_all() a literal period is '\\." 
+
+str_squish gets rid of leading or trailing spaces 
+```{r}
+|> 
+  mutate(jurisdiction = str_squish(str_replace_all(jurisdiction,'\\.','')))
+```
