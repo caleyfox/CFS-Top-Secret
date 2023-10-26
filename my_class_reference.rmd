@@ -111,3 +111,50 @@ str_squish gets rid of leading or trailing spaces
 |> 
   mutate(jurisdiction = str_squish(str_replace_all(jurisdiction,'\\.','')))
 ```
+
+Combining datasets 
+```{r}
+county_voters_combined <- bind_rows(list(county_voters_2016, county_voters_2018, county_voters_2020, county_voters_2022))
+
+```
+
+glimpse gives you summaries 
+```{r}
+glimpse(maryland_zcta)
+```
+
+changing datatype from dbl to character **You always want zip codes to be characters, not numbers. 
+
+```{r}
+mutate(ZCTA5N = as.character(ZCTA5N))
+
+```
+
+changing datatype from character to dbl 
+
+
+```{r}
+mutate(ZCTA5N = as.numeric(ZCTA5N))
+
+```
+To generate a new column called month, I first tried mutate() with month() but that was giving me a number 1-12 to label the month instead of its name. When I typed month I could see that R was suggesting other possible functions for me so I just kept trying until I was successful with months.POSIXt(). That function apparently uses the base library so I loaded that above. 
+
+```{r}
+county_911_combined <- county_911_combined |> 
+  mutate(month = months.POSIXt(date))
+```
+
+
+renaming a column
+```{r}
+dataset |> 
+  rename (new_column_name = old_column_name)
+```
+
+**Task** Run the following code to join Maryland population data and the 2022 voter registration data together using the common column county as the key. How many rows are there now? How many *should* there be? 
+
+**Answer**
+
+```{r}
+# Joining 2 dataframes with nrow included to show row total
+maryland_population |> left_join(county_voters_2022, join_by("COUNTY")) |> nrow()

@@ -1,0 +1,197 @@
+---
+title: "lab_06"
+author: "Caley Fox Shannon"
+date: "2023-10-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load libraries and establish settings
+
+```{r}
+# Turn off scientific notation
+options(scipen=999)
+
+# load your libraries
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(base)
+```
+
+## Getting Started
+
+This week we'll be combining and joining data to make it more useful and to ask some questions about it. We'll use some more 911 overdose call data to do this. The first thing we want to do is to combine multiple counties' data into a single dataframe so that we can ask some questions. First, let's combine data from Cecil, Carroll and Allegany counties into a new dataframe.
+
+*Before* you combine them you'll need to clean up some of the column names to make the data easier to work with - make sure you have loaded the library to do that. You also need to make sure that each column has the same name and datatype (you can check the datatypes using `glimpse`). If any of them does not, you need to fix that.
+
+```{r}
+# load and combine the call data from those three counties. 
+
+cecil_911 <- read_csv("data/cecil_911.csv") 
+carroll_911 <- read_csv("data/carroll_911.csv") |> rename(date = Date) |> rename(location = Location)
+allegany_911 <- read_csv("data/allegany_911.csv") 
+
+glimpse(cecil_911)
+glimpse(carroll_911)
+glimpse(allegany_911)
+
+county_911_combined <- bind_rows(list(cecil_911, carroll_911, allegany_911))
+
+
+```
+
+Then we'll join some demographic data with Baltimore City 911 calls and ask some questions of that. For that, you'll need to load the Baltimore City 911 data and the ZCTA demographic data from the data folder, and join them based on the zip code. Remember, the zip codes in both dataframes must be the same datatype (and should be characters). You should start with your Baltimore City 911 dataframe in creating your join.
+
+```{r}
+# load and join the Baltimore-related data
+
+baltimore_911 <- read_csv("data/baltimore_911.csv") 
+maryland_zcta <- read_csv("data/maryland_zcta.csv")
+
+glimpse(baltimore_911)
+glimpse(maryland_zcta)
+
+baltimore_911 <- baltimore_911 |> 
+  mutate(zip_code = as.character(zip_code))
+
+maryland_zcta <- maryland_zcta |> 
+  rename(zip_code = ZCTA5N) |> 
+  clean_names() |> 
+  mutate(zip_code = as.character(zip_code))
+
+baltimore_911_with_demographics <- baltimore_911 |> left_join(maryland_zcta, join_by(zip_code))
+
+```
+
+## Answer questions
+
+Q1. Let's start with our data from Allegany, Cecil and Carroll counties. Write code to generate a dataframe that shows the total number of calls for each county. What's the order of counties from most calls to least?
+
+A1.Carroll County has the most calls at 448, followed by Cecil with 438 and Allegany with 418. 
+
+```{r}
+county_911_combined |> 
+  group_by(county)|> 
+  summarise(count = n()) |> 
+  arrange(desc(count))
+```
+
+Q2. In your combined dataframe that you used in A1, add a column for the month of each call, then write code to show the total number of calls per county and month. Are there any outliers or noteworthy results? Describe the general pattern of the results.
+
+Then calculate the most calls per county and location. Which location had the most calls - where and what is that location?
+
+A2. The top two results are for the month of August, followed by September and May, which would lead me to think about whether there is a correlation between 911 calls and hot weather. Allegany County accounts for 5 of the top 10 results, so maybe there is more crime in general there than Cecil or Carroll Counties. 
+
+When looking specifically at locations with the most 911 calls, the leader is 314 GROVE NECK RD EARLEVILLE, MD with 15 calls. I Googled that address and it is an Inpatient Alcohol & Drug Addiction Treatment Center. It makes sense that 911 calls may be made for folks experiencing severe withdrawal or other symptoms during substance abuse treatment. 
+
+```{r}
+county_911_combined <- county_911_combined |> 
+  mutate(month = months(date))
+
+county_911_combined |> 
+  group_by(county,month) |> 
+  summarise(count = n())|> 
+  arrange(desc(count))
+
+county_911_combined |>  
+  group_by(county,location) |> 
+  summarise(count = n())|> 
+  arrange(desc(count))
+
+```
+
+Q3. Let's turn to the Baltimore City data. You're interested in exploring calls in zip codes with a high percentage of children under 18. Write code to isolate calls in zip codes where the percentage of under 18 population is at least 75% and then show the zip code and population and how many calls occurred in each of those zip codes.
+
+Where are those zip codes in the city?
+
+Add a column to your code that calculates the number of calls per 1,000 people for those zip codes. To calculate a per capita rate, you might find this short guide handy: [https://observablehq.com/\@palewire/per-capita-calculator](https://observablehq.com/@palewire/per-capita-calculator){.uri}.
+
+Which zip code has the highest rate of calls per 1,000 people? Find the neighborhoods in that zip code that are listed in the data - you can use group_by or distinct to do this. What are some of those neighborhoods, and what else can you tell me about the population there?
+
+A3. The zip codes with a high percentage of children are 21217, 21223, 21202, 21213, 21201, 21216, and 21205. The zip code with the highest rate of calls per 1,000 people is 21217, with approximately 20 calls per one thousand residents. This is a zip code in northwest Baltimore that includes the neighborhoods Penn North, Upton, Harlem Park, Druid Heights and others. This zip code's residents are 86.4% Black, 70% renters, and 81.5% under 18. That last figure is shocking to me - there are 4 children for every single adult? Wow. 
+
+Note here about my code: I wrote the first and last chunk by myself, but used ChatGPT for the middle chunk. I knew I needed to mutate to create a new column with the call rate, but the math formula was really the sticking point for me. I knew that I needed to work with a variable that represented the rows, or calls, per zip code. But no matter what I did I was getting an error that read "non-numeric argument to binary operator." 
+
+Finally I asked ChatGPT: "I am working in R with the tidyverse, lubridate and janitor libraries. My dataframe is called baltimore_911_with_demographics. It has columns called zip_code, which has the zip code, and population, which has the number of people that live in that zip code. The rows represent calls to 911. I need to write code that gives me a new column called zip_call_rate which shows the number of calls per 1,000 people living in that zip code." 
+
+And it gave me: 
+
+"# Load required libraries
+library(tidyverse)
+library(lubridate)
+library(janitor)
+
+# Assuming your dataframe is called baltimore_911_with_demographics
+
+baltimore_911_with_demographics <- baltimore_911_with_demographics %>%
+  # Group the data by zip_code and calculate the number of calls (rows) per zip code
+  group_by(zip_code) %>%
+  summarize(calls = n()) %>%
+  ungroup() %>%
+  # Join the summarized calls data back to the original dataframe based on zip_code
+  left_join(baltimore_911_with_demographics, by = "zip_code") %>%
+  # Calculate the call rate per 1,000 people
+  mutate(zip_call_rate = (calls / population) * 1000) %>%
+  # Clean up the column names (optional)
+  clean_names()
+
+# Print the updated dataframe
+print(baltimore_911_with_demographics)"
+
+I tried to clean up this code to remove ChatGPT's notes and only take what I needed, but somehow every time I edited it, it started to malfunction. So I gave up after a lot of trying and left its code in untouched. Frankly I was suprised that it suggested to use ungroup() and leftjoin() again, I definitely had not thought of using the join function again. Maybe we could talk more about what ungroup() does? Thanks. 
+
+Another note: I feel like something weird has happened along the way with group_by(), am I wrong? The code below should give me one row for each zip code, right? But it's not. Did I do something wrong when I joined the baltimore_911 and maryland_zcta dataframes? 
+
+```{r}
+# Find zip codes with over 75% children. Look at the population and how many calls occurred in each zip code. 
+
+baltimore_911_with_demographics |> 
+  group_by(zip_code, population) |> 
+  filter(pct_under_18 > 75) |> 
+  summarise(count = n()) |>
+  arrange(desc(count))
+
+# Find the rate of calls per 1,000 people for each zip code 
+
+baltimore_911_with_demographics <- baltimore_911_with_demographics %>%
+  # Group the data by zip_code and calculate the number of calls (rows) per zip code
+  group_by(zip_code) %>%
+  summarize(calls = n()) %>%
+  ungroup() %>%
+  # Join the summarized calls data back to the original dataframe based on zip_code
+  left_join(baltimore_911_with_demographics, by = "zip_code") %>%
+  # Calculate the call rate per 1,000 people
+  mutate(zip_call_rate = (calls / population) * 1000) %>%
+  # Clean up the column names (optional)
+  clean_names()
+
+# Print the updated dataframe
+print(baltimore_911_with_demographics)
+
+# Find the zip code with the highest rate of calls per 1,000 people. 
+
+baltimore_911_with_demographics |> 
+  arrange(desc(zip_call_rate))
+
+
+```
+
+Q4. Choose your own adventure: I want you to come up with a question you could ask of the Baltimore City data that combines both the calls and the demographic information. You must use both demographics and the overdose call data in your work.
+
+A4: What zip code has the highest proportion of renters, and what is the call rate in that zip code? How about the lowest? 
+
+The zip code with the highest proportion of renters is 21201, with 90.6% of residents renting and 18.9 9-1-1 calls placed per 1,000 residents. This zip code represents the western half of downtown Baltimore. 
+
+The zip code with the lowest proportion of renters is 21251 at 0%. This zip code is for Morgan State University, and it appears that zero housing units are listed. So something about how the post office has categorized the school as its own zip code throws the data a bit, as we touched on in class. The call rate at Morgan State is 6.9 per 1,000 residents. The lowest after that is 21214 with 26.1% of the population renting and a 2.3 calls per 1,000 resident 9-1-1 call rate. 
+
+```{r}
+
+baltimore_911_with_demographics |> 
+  group_by(zip_code, pct_homeowner,zip_call_rate) |> 
+  arrange (desc(pct_rent))
+
+```
