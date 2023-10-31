@@ -151,6 +151,21 @@ dataset |>
   rename (new_column_name = old_column_name)
 ```
 
+Show me each value that appears in a column once in a list using distinct(). The code below gives a list of all the values appearing in the "neighborhood" column in the 21217 zip code. 
+
+```{r}
+baltimore_911_with_demographics |> 
+  filter(zip_code == "21217") |> 
+  distinct(neighborhood) 
+```
+
+install the census library when working with census data. Census key below. Get info from one census with get.decennial. 
+```{r}
+library(tidycensus)
+
+p00 <- get_decennial(geography = "state", variables = "P001001", year = 2000)
+```
+
 **Task** Run the following code to join Maryland population data and the 2022 voter registration data together using the common column county as the key. How many rows are there now? How many *should* there be? 
 
 **Answer**
