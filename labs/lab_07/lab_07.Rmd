@@ -1,0 +1,170 @@
+---
+title: "lab_07"
+author: "Caley Fox Shannon"
+date: "2023-03-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## You will need
+
+-   A Census API key
+
+## Load libraries and establish settings
+
+You'll need to load two packages for this: the tidyverse and tidycensus.
+
+**Task** load these two packages
+
+```{r}
+# Turn off scientific notation
+options(scipen=999)
+
+# Load the tidyverse.
+library(tidyverse)
+library(tidycensus)
+library(janitor)
+```
+
+## Setup Census API
+
+You'll need your Census API Key:
+
+**Task** set your API Key if you haven't already. You won't need to install or overwrite it.
+
+```{r echo=FALSE}
+```
+
+## Load and view ACS variables
+
+You'll also need to load the list of American Community Survey variables from the 2021 5-year estimates so you can identify the codes you need:
+
+**Task** load the variables from the 2021 5-year ACS (which is called "acs5") and save them to a dataframe
+
+```{r}
+
+acs5 <- load_variables(2021, "acs5", cache = TRUE)
+View(acs5)
+
+glimpse(acs5)
+
+acs5 |> 
+  distinct(geography)
+
+acs5
+```
+
+## Answer questions
+
+**Q1** What is the Maryland jurisdiction with the lowest median age, according to the ACS 2021 5-year estimates? You will need to find the variable for median age first. 
+
+**A1** Baltimore City is the Maryland jurisdiction with the lowest median age, at 35.7 years old. 
+
+```{r}
+medage_df <- get_acs(geography = "county",
+              variables = c(medage = "B01002_001"),
+              state = "MD",
+              year = 2021)|> 
+  arrange(estimate)
+
+medage_df
+```
+
+**Q2** Which Maryland counties have a median age of at least 50? You can use the dataframe you just made to answer this, but you must write code to display only those counties with a median age of at least 50. 
+
+**A2** The counties in Maryland with a median age over 50 years old at Worcester and Talbot. 
+
+```{r}
+medage_df |> 
+  filter(estimate >= 50)
+
+```
+
+**Q3** We're interested in knowing more about Montgomery County zip codes where overdose calls are coming from and the demographic characteristics they possess. In particular, we want to calculate a rate of calls per 1,000 population. To do this, you'll need to:
+
+1. Load the Montgomery County 911 overdose calls data.
+2. Create a new dataframe with the total number of calls for each zip code.
+3. Find the ACS variable pertaining to the total 18 and up population (there are several choices here; you want the simplest one).
+4. Get from the ACS data from all Maryland zip codes using that variable.
+5. Join the ACS data to the Montgomery County zip code totals dataframe and rename the estimate column to a meaningful name you've given the ACS variable.
+6. Add a column to the joined dataframe that calculates a rate of calls per 1,000 population.
+
+Which zip code has the highest rate of calls? Which has the lowest?
+
+**A3** The 20877 zip code has the highest call rate at 1.7 calls per 1,000 adults. The 20707 zip code has the highest call rate at 0.04 calls per 1,000 adults. 
+
+```{r}
+# 1. Load the Montgomery County 911 overdose calls data.
+
+montgomery_2022_overdoses <- read_csv("data/montgomery_2022_overdoses.csv")
+
+# 2. Create a new dataframe with the total number of calls for each zip code.
+
+montgomery_991_zipcode <- montgomery_2022_overdoses |> 
+  group_by(zip)|> 
+  summarise (calls = n())
+
+# 3. Find the ACS variable pertaining to the total 18 and up population. 
+
+B09021_001
+
+# 4. Get from the ACS data from all Maryland zip codes using that variable.
+
+adults_df <- get_acs(geography = "zcta",
+              variables = c(adults = "B09021_001"),
+              state = "MD",
+              year = 2019)
+
+montgomery_991_zipcode <- montgomery_991_zipcode |> mutate(zip = as.character(zip))
+
+# 5. Join the ACS data to the Montgomery County zip code totals dataframe and rename the estimate column to a meaningful name you've given the ACS variable.
+
+adults_montgomery_911 <- montgomery_991_zipcode |> left_join(adults_df, by=c('zip'='GEOID'))
+
+# 6. Add a column to the joined dataframe that calculates a rate of calls per 1,000 population.
+
+adults_montgomery_911 <- adults_montgomery_911 |> 
+  rename(adult_population = estimate)
+
+adults_montgomery_911 <- adults_montgomery_911 |> 
+  clean_names()
+
+adults_montgomery_911 <- adults_montgomery_911|> 
+  group_by(zip, adult_population, calls) |> 
+  mutate(call_rate = calls/adult_population *1000)|> 
+  arrange(call_rate)
+
+adults_montgomery_911 
+
+```
+
+**Q4** Using [CensusReporter.org](https://censusreporter.org/), examine the zip codes with the highest and lowest rates and compare and contrast their demographic profiles. Is there a story here?
+
+**A4** These two zip codes have comparable populations, but 20707 has an area twice as large as 20877. The poverty rate in 20877 is 15.4%, compared to 8.4% in 20207. Additionally, 20207 has a much higher high school graduation rate than 20877, at 45.9% compared to 37.1% respectively. 
+
+**Q5** Go back to your joined dataframe from Q3 and add two more columns representing the minimum and maximum populations based on the estimate and margin of error, then calculate per capita rates for each. Do you get the same two zip codes for the highest and lowest as you did before? Does that give you more or less confidence in your answers to Q3?
+
+**A5** No, the answers did not change which gives me confidence in my answer to question 4. When looking at maximum populations, 20707 still has the lowest call rate at 0.039 per 1,000 residents. 20877 still has the highest, at 1.64 calls per 1,000 residents. When looking at minimum populations, 20707 still has the lowest call rate at 0.041 per 1,000 residents. 20877 still has the highest, at 1.76 calls per 1,000 residents. 
+
+```{r}
+# Add two more columns representing the minimum and maximum populations based on the estimate and margin of error, then calculate per capita rates for each.
+
+adults_montgomery_911 <- adults_montgomery_911 |> 
+  mutate(max_pop = adult_population + moe)|> 
+  mutate(max_pop_rate = (calls/max_pop) *1000)|> 
+  mutate(min_pop = adult_population - moe) |> 
+  mutate(min_pop_rate = (calls/min_pop) *1000)
+
+adults_montgomery_911
+
+# Do you get the same two zip codes for the highest and lowest as you did before?
+
+adults_montgomery_911|> 
+  group_by(zip, min_pop_rate) |> 
+  arrange(desc(min_pop_rate))
+
+```
+
