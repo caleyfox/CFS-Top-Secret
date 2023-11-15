@@ -169,7 +169,28 @@ p00 <- get_decennial(geography = "state", variables = "P001001", year = 2000)
 **Task** Run the following code to join Maryland population data and the 2022 voter registration data together using the common column county as the key. How many rows are there now? How many *should* there be? 
 
 **Answer**
-
 ```{r}
+
 # Joining 2 dataframes with nrow included to show row total
 maryland_population |> left_join(county_voters_2022, join_by("COUNTY")) |> nrow()
+
+```
+
+* prevent overlap of labels on a scatterplot with check_overlap = TRUE
+
+```{r}
+#4-6. Make a scatterplot showing the total calls and median income. Give it an appropriate title, source, and x and y axis titles. Add a label for each point that shows the zip code using geom_text. 
+
+zip_income_pg_911|>
+  ggplot() + 
+  geom_point(aes(y=calls_per_zipcode, x=median_income))+ 
+  geom_text(aes(y=calls_per_zipcode+5, x=median_income, label=zipcode), check_overlap = TRUE)+
+  labs(
+    title="High Income Areas Place Fewer Overdose 911 Calls",
+    y = "Calls Per Zipcode",
+    x = "Median Income",
+    caption = "source: Prince George's County EMS")
+```
+
+
+
