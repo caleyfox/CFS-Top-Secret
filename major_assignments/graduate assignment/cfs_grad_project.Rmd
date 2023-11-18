@@ -1,7 +1,7 @@
 ---
 title: "Grad Project: Violent Crime in Maryland Since 1975 By County"
 author: "Caley Fox Shannon"
-date: "11-12-23"
+date: "11-18-23"
 output:
   html_document:
     theme: cerulean
@@ -39,8 +39,6 @@ library(tidycensus)
 
 ## Load and Cleaning Data
 
-In this section, describe the source of the data, write a basic data dictionary for data you are working with, and discuss any caveats or issues you discovered working with this data. 
-
 ```{r}
 
 # Load required data.
@@ -57,15 +55,60 @@ violent_crime_counties <- violent_crime_counties |>
   rename(breaking_and_entering_per_100_000_people = b_e_per_100_000_people)|> 
   rename(motor_vehicle_theft_per_100_000_people = m_v_theft_per_100_000_people)|> 
   rename(breaking_and_entering_rate_percent_change_per_100_000_people = b_e_rate_percent_change_per_100_000_people) |> 
-  rename(motor_vehicle_theft_rate_percent_change_per_100_000_people = m_v_theft_rate_percent_change_per_100_000_people) 
+  rename(motor_vehicle_theft_rate_percent_change_per_100_000_people = m_v_theft_rate_percent_change_per_100_000_people) |> 
+  rename(county = jurisdiction)
+
+# Find NA values 
+
+sum(is.na(violent_crime_counties))
 
 ```
 
 ## Description of Data 
+In this section, describe the source of the data, write a basic data dictionary for data you are working with, and discuss any caveats or issues you discovered working with this data. 
 
-This dataset was compiled from Maryland State Police's annual Uniform Crime Reports. There are 1,104 rows, one per county per year since ‘75. There are 38 columns: jurisdiction, year, population, columns for types of crime (murder, rape, robbery, aggravated assault, breaking and entering, larceny theft and motor vehicle theft). There are columns that total violent crimes and property theft crimes, as well as calculating per capita rates and percent change per year. The data appears to be very complete, with NA values only found in 1975 for "percent change" columns because it is the first year in the dataset. 
+This dataset was compiled from Maryland State Police's annual Uniform Crime Reports. There are 1,104 rows, one per county per year from 1975 to 2020. Based on the number of rows, this dataset is complete and not missing any years for any counties (24 counties * 46 years = 1,104). 
 
-I am looking for trends across the crime categories over time. What types of crime have increased and what has decreased? What has stayed steady? Are there any outlying years that may have an interesting story behind them? Based on these trends, what crimes should Marylanders be most concerned about?
+The dataset includes 312 NA values. These NA values are for each couty's 1975 row, in the 13 columns that include a change over time (24 counties * 13 columns = 312). This makes sense because 1975 is the first year in the dataset. 
+
+There are 38 columns. Columns include the county, year, population, and 7 major types of crime (murder, rape, robbery, aggravated assault, breaking and entering, larceny theft and motor vehicle theft) and a grand total of crimes. There are also columns that total violent crimes and property theft crimes, as well as calculating per capita rates and percent change per year for all categories. 
+
+## Confirm that aggregates are correct 
+
+```{r}
+
+# Check grand_total column 
+
+violent_crime_counties |>
+  group_by(county, year, grand_total)|> 
+  summarise(check_grand_total = (murder+rape+robbery+agg_assault+breaking_and_entering+larceny_theft+motor_vehicle_theft))
+
+# Check breaking_and_entering_per_100_000_people
+
+violent_crime_counties |>
+  group_by(county, year, breaking_and_entering_per_100_000_people)|> 
+  summarise(check_breaking_and_entering_per_100_000_people = (breaking_and_entering/population)*100000)
+
+# Check property_crime_percent_change using pct_change=((new-old)/old)*100
+
+violent_crime_counties |>
+  group_by(county, year, property_crime_percent_change)|> 
+  summarise(check_property_crime_percent_change = (property_crime_totals - lag(property_crime_totals)) / lag(property_crime_totals) * 100)
+
+
+# Chatgpt's idea that is not working: 
+
+violent_crime_counties %>%
+  arrange(county, year) %>%
+  group_by(county) %>%
+  summarise(year = year,
+            property_crime_totals = list(property_crime_totals),
+            percent_change = (property_crime_totals - lag(property_crime_totals)) / lag(property_crime_totals) * 100)
+
+
+```
+
+### I am looking for trends across the crime categories over time. What types of crime have increased and what has decreased? What has stayed steady? Are there any outlying years that may have an interesting story behind them? Based on these trends, what crimes should Marylanders be most concerned about?
 
 ### Look at trends over time in the 7 crime categories. 
 
