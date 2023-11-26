@@ -1,7 +1,7 @@
 ---
 title: "Grad Project: Violent Crime in Maryland Since 1975 By County"
 author: "Caley Fox Shannon"
-date: "11-18-23"
+date: "11-26-23"
 output:
   html_document:
     theme: cerulean
@@ -43,13 +43,13 @@ library(tidycensus)
 
 # Load required data.
 
-violent_crime_counties <- read_csv("data/violent_crime_counties.csv")
+crime_by_county <- read_csv("data/crime_by_county.csv")
 
 # Clean required data and prepare for analysis if needed. 
 
-violent_crime_counties <- clean_names(violent_crime_counties)
+crime_by_county <- clean_names(crime_by_county)
 
-violent_crime_counties <- violent_crime_counties |> 
+crime_by_county <- crime_by_county |> 
   rename(breaking_and_entering = b_e)|> 
   rename(motor_vehicle_theft = m_v_theft)|> 
   rename(breaking_and_entering_per_100_000_people = b_e_per_100_000_people)|> 
@@ -60,7 +60,7 @@ violent_crime_counties <- violent_crime_counties |>
 
 # Find NA values 
 
-sum(is.na(violent_crime_counties))
+sum(is.na(crime_by_county))
 
 ```
 
@@ -79,32 +79,26 @@ There are 38 columns. Columns include the county, year, population, and 7 major 
 
 # Check grand_total column 
 
-violent_crime_counties |>
+crime_by_county |>
   group_by(county, year, grand_total)|> 
   summarise(check_grand_total = (murder+rape+robbery+agg_assault+breaking_and_entering+larceny_theft+motor_vehicle_theft))
 
 # Check breaking_and_entering_per_100_000_people
 
-violent_crime_counties |>
+crime_by_county |>
   group_by(county, year, breaking_and_entering_per_100_000_people)|> 
   summarise(check_breaking_and_entering_per_100_000_people = (breaking_and_entering/population)*100000)
 
-# Check property_crime_percent_change using pct_change=((new-old)/old)*100
+# Check property_crime_percent_change using pct_change=((new-old)/old)*100. Phoned you in on this one, your code below Derek. 
 
-violent_crime_counties |>
-  group_by(county, year, property_crime_percent_change)|> 
-  summarise(check_property_crime_percent_change = (property_crime_totals - lag(property_crime_totals)) / lag(property_crime_totals) * 100)
-
-
-# Chatgpt's idea that is not working: 
-
-violent_crime_counties %>%
-  arrange(county, year) %>%
+crime_by_county %>%
   group_by(county) %>%
-  summarise(year = year,
-            property_crime_totals = list(property_crime_totals),
-            percent_change = (property_crime_totals - lag(property_crime_totals)) / lag(property_crime_totals) * 100)
+  arrange(county, year, property_crime_percent_change) %>%
+  mutate(check_property_crime_percent_change = (property_crime_totals - lag(property_crime_totals)) / lag(property_crime_totals) * 100) %>%
+  filter(!is.na(check_property_crime_percent_change)) |> 
+  select(county, year, property_crime_percent_change, check_property_crime_percent_change )
 
+# Looks like the aggregates in the dataframe are accurate and can be used moving forward. 
 
 ```
 
@@ -137,7 +131,7 @@ ggplot(trends_long, aes(x = year, y = count, color = crime_type)) +
   
 So here I learned that the function I needed was gather(key = "crime_type", value = "count", -year). I tweaked ChatGPT's code to meet my needs and that worked. Now I had a dataframe with a column called crime_type that included the types of crimes I wanted to include and a line graph with corresponding lines for those types. After looking at the graph, I went back and wrote a title representative of those findings. I also changed the category names to be capitalized for the sake of the graph aesthetics. 
 
-**Answer** In general, crime in Maryland has trended down for nearly two decades. Most crime types appear to peak in 1980 and again around 1995. As of 2020 (the most recent year in the data), crime appears to be at record lows in almost every category. Rape and murder are consistently the most rare, but in this format it is difficult to tell whether rape and murder are at their lowest or if they're at similar levels to 1975. This probably deserves a closer look. 
+**Answer** In general, crime in Maryland has trended down for nearly two decades. Most crime types appear to peak around 1980 and again around 1995. As of 2020 (the most recent year in the data), crime appears to be at record lows in almost every category. Rape and murder are consistently the most rare, but in this format it is difficult to tell whether rape and murder are at their lowest or if they're at similar levels to 1975. This probably deserves a closer look. 
 
 Larceny theft continues to be the most prevalent crime, but it has also fallen the most dramatically. There could be an interesting story here: have policing practices around larceny theft changed? Has the definition of this crime changed? Or what factors have lead to a drastic decline in larceny theft over the past two years?  
 
@@ -145,7 +139,7 @@ Larceny theft continues to be the most prevalent crime, but it has also fallen t
 
 # Create new data frame summarizing the 7 crime categories. 
 
-trends_in_crime <- violent_crime_counties |> 
+trends_in_crime <- crime_by_county |> 
   group_by(year)|> 
   summarise(
     "Rape" = sum(rape), 
@@ -181,57 +175,33 @@ trends_in_crime_by_type
 
 **Question** How do trends in violent crime compare to property crime in Maryland? 
 
-**Process** 
+**Answer** Datawrapper chart here: https://www.datawrapper.de/_/KSjKd/. Both violent and propety crimes in Maryland fell to record lows by 2020. Property crime was cut in half and violent crime is down 15% from 1975 levels. As we know from the chart above, the major changes are in larceny theft and breaking and entering. 
 
 ```{r}
 
 # Create new data frame summarizing violent crime and property crime. 
 
-violent_versus_property <- violent_crime_counties |> 
+violent_versus_property <- crime_by_county |> 
   group_by(year)|> 
   summarise(
     "Violent Crime" = sum(violent_crime_total), 
     "Property Crime" = sum(property_crime_totals))
 
-#Create a second graph showing violent crime versus property crime. 
+#Create a second graph showing violent crime versus property crime. Let's write to CSV and take it to DataWrapper this time. 
 
-violent_versus_property_timeline <- violent_versus_property |>
-  gather(key = "crime_type", value = "count", -year)
-
-# Find the year with maximum and minimum values for each crime type
-
-max_years <- violent_versus_property_timeline |>
-  group_by(crime_type) |>
-  filter(count == max(count)) |>
-  select(crime_type, year)
-
-min_years <- violent_versus_property_timeline |>
-  group_by(crime_type) |>
-  filter(count == min(count)) |>
-  select(crime_type, year)
-
-violent_versus_property_timeline %>%
-  ggplot() +
-  geom_line(aes(x = year, y = count, color = crime_type)) +
-  geom_point(data = max_years, aes(x = year, y = "Violent Crime", color = crime_type), shape = 16, size = 3) +
-  geom_point(data = min_years, aes(x = year, y = "Violent Crime", color = crime_type), shape = 1, size = 3) +
-  annotate("text", x = max_years$year, y = max_years$"Violent Crime", label = "Max", vjust = -1) +
-  annotate("text", x = min_years$year, y = min_years$"Violent Crime", label = "Min", vjust = 1) +
-  labs(
-    title = "Violent and Property Crime Over the Years",
-    x = "Year",
-    y = "Count",
-    color = "Crime Type"
-  ) +
-  theme_minimal()
+write_csv(violent_versus_property, "data/violent_versus_property.csv")
 
 ```
 
-**Sentence text**: [Paste in sentence to engineer here]
+## Let's look specifically at the violent crime categories. 
+
+**Question** What trends can we observe over time within in the violent crime category? 
+
+**Answer** It looks like rape and murder have maintained relatively stable over the past 4 decades, while aggravated assault and robbery both peaked sharply around 1995-2000 and have since fallen. Robbery has fallen significantly more than aggravated assault has. Why would that be? 
 
 ```{r}
 
-violent_crime_by_type <- violent_crime_counties |> 
+violent_crime_by_type <- crime_by_county |> 
   group_by(year)|> 
   summarise(
     total_rape = sum(rape), 
@@ -254,12 +224,11 @@ violent_crime_by_type_timeline|>
 
 ```
 
-
-Do the same for property 
+## Let's do the same analysis for property theft categories. 
 
 ```{r}
 
-property_crime_by_type <- violent_crime_counties |> 
+property_crime_by_type <- crime_by_county |> 
   group_by(year)|> 
   summarise(
     total_breaking_and_entering = sum(breaking_and_entering), 
@@ -283,20 +252,17 @@ property_crime_by_type_timeline |>
        color = "Crime Type") +
   theme_minimal()
 
-
-
 ```
 
-
-Let's look at just PG County, assuming we are reporting for the sake of UMD students in College Park. 
+Now let's look at just PG County, assuming we are reporting for the sake of UMD students in College Park. 
 
 
 ```{r}
 
-#Create a second graph showing violent crime versus property crime. 
+#Create a second graph showing violent crime versus property crime in PG County. 
 
-trends_pg <- violent_crime_counties |> 
-  filter(jurisdiction == "Prince George's County") |>
+trends_pg <- crime_by_county |> 
+  filter(county == "Prince George's County") |>
   group_by(year)|> 
   summarise(
     total_rape = sum(rape), 
@@ -333,8 +299,9 @@ trends_pg_timeline|>
 **Analysis summary**: [Write up two to three sentences describing the results of your analysis.  Were you able to confirm the finding? If not, why not?]
 
 ```{r}
-mvtheft_pg <- violent_crime_counties |> 
-  filter(jurisdiction == "Prince George's County") |>
+
+mvtheft_pg <- crime_by_county |> 
+  filter(county == "Prince George's County") |>
   group_by(year)|> 
   summarise(total_motor_vehicle_theft = sum(motor_vehicle_theft)) |> 
   arrange(total_motor_vehicle_theft)
@@ -345,22 +312,110 @@ mvtheft_pg |>
   ggplot()+ 
   geom_bar(aes(x=year, weight=total_motor_vehicle_theft)) + 
   labs(
-    title="Vehicle Theft in Prince George's County at Record Lows 2015-2020",
+    title="Vehicle theft in Prince George's County dips to record lows past 5 years",
     x = "Year",
     y = "Motor Vehicle Theft",
     caption = "source: Maryland State Police")
 
 ```
 
-### Sentence 4
+### What could be causing property theft to go down so much? Is there anything we can compare from the ACS? 
 
-NOW NEED TO MERGE WITH CENSUS DATA TO DO SOMETHING ELSE WITH THIS ANALYSIS 
+** Question** Is there a relationship between the drop in property crime and the number of adults in the workforce? 
+
 
 ```{r}
-# Put code to reverse engineer sentence here
+# Load census data from 2020, 2010, 2000. Let's look at employment status? https://acsdatacommunity.prb.org/discussion-forum/f/forum/395/acs-profile-data-variables
+# says that DP03_0002PE EMPLOYMENT STATUS!!Population 16 years and over!!In labor force
 
-# Display results of code below this codeblock
 
+md_2020  <- get_acs(geography='county', variables=c(adult__workforce='DP03_0002PE'), state='MD', year=2020)
+
+# Rename the estimate and moe columns. 
+
+md_2020 <- md_2020|> 
+  rename(pct_employed = estimate)|> 
+  rename(moe_employment = moe)|> 
+  rename(county = NAME)
+
+# We need to clean the county names so we can merge this dataset with crime_by_county. 
+
+md_2020 <- md_2020|> 
+  mutate(county = str_remove(county, ", Maryland"))
+
+# Baltimore city needs a capital C. Let's just go ahead and put all the counties in all caps in both dataframes. 
+
+md_2020 <- md_2020 |> 
+ mutate(county = str_to_upper(county))
+
+crime_by_county <- crime_by_county |> 
+ mutate(county = str_to_upper(county))
+
+# We need to establish what decade this info is from for our merge with crime_by_county. 
+
+md_2020 <- md_2020 |> 
+ mutate(census_year = 2020)
+
+# Let's get rid of the GEOID and variable columns. 
+
+md_2020 <- md_2020 |> 
+  select(-GEOID, -variable)
+
+# Now let's merge with crime_by_county, years 2016-2020. 
+
+crime_by_county_2020 <- crime_by_county |> 
+ filter(year >= 2016 & year <= 2020)
+
+# Now let's join crime_by_county_2020 with md_2020 
+
+crime_by_county_2020 <- crime_by_county_2020 |> 
+  left_join(md_2020, join_by(county))
+
+# Great. Now let's repeat that process with 2015. 
+
+md_2015  <- get_acs(geography='county', variables=c(adult__workforce='DP03_0002PE'), state='MD', year=2015)
+
+md_2015  <- md_2015 |> 
+  rename(pct_employed = estimate)|> 
+  rename(moe_employment = moe)|> 
+  rename(county = NAME)|> 
+  mutate(county = str_remove(county, ", Maryland"))|> 
+  mutate(county = str_to_upper(county))|> 
+  mutate(census_year = 2015)|> 
+   select(-GEOID, -variable)
+ 
+crime_by_county_2015 <- crime_by_county |> 
+ filter(year >= 2011 & year <= 2015)
+
+crime_by_county_2015 <- crime_by_county_2015 |> 
+  left_join(md_2015, join_by(county))
+
+# And 2010. 
+
+md_2010  <- get_acs(geography='county', variables=c(adult__workforce='DP03_0002PE'), state='MD', year=2010)
+
+md_2010  <- md_2010 |> 
+  rename(pct_employed = estimate)|> 
+  rename(moe_employment = moe)|> 
+  rename(county = NAME)|> 
+  mutate(county = str_remove(county, ", Maryland"))|> 
+  mutate(county = str_to_upper(county))|> 
+  mutate(census_year = 2010)|> 
+   select(-GEOID, -variable)
+
+crime_by_county_2010 <- crime_by_county |> 
+ filter(year >= 2006 & year <= 2010)
+
+crime_by_county_2010 <- crime_by_county_2010 |> 
+  left_join(md_2010, join_by(county))
+
+# Now let's combine 2010, 2015 and 2020. 
+
+counties_census <- bind_rows(list(crime_by_county_2010, crime_by_county_2015, crime_by_county_2020))
+
+
+## VISUALIZE THE RELATIONSHIP BETWEEN PROPERTY CRIME AND EMPLOYMENT! AND I STG IT BETTER BE RELATED! 
+                             
 ```
 
 ### Sentence 5
