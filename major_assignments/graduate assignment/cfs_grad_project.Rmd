@@ -56,7 +56,8 @@ crime_by_county <- crime_by_county |>
   rename(motor_vehicle_theft_per_100_000_people = m_v_theft_per_100_000_people)|> 
   rename(breaking_and_entering_rate_percent_change_per_100_000_people = b_e_rate_percent_change_per_100_000_people) |> 
   rename(motor_vehicle_theft_rate_percent_change_per_100_000_people = m_v_theft_rate_percent_change_per_100_000_people) |> 
-  rename(county = jurisdiction)
+  rename(county = jurisdiction)|> 
+  mutate(county = str_to_upper(county))
 
 # Find NA values 
 
@@ -262,7 +263,7 @@ Now let's look at just PG County, assuming we are reporting for the sake of UMD 
 #Create a second graph showing violent crime versus property crime in PG County. 
 
 trends_pg <- crime_by_county |> 
-  filter(county == "Prince George's County") |>
+  filter(county == "PRINCE GEORGE'S COUNTY") |>
   group_by(year)|> 
   summarise(
     total_rape = sum(rape), 
@@ -301,7 +302,7 @@ trends_pg_timeline|>
 ```{r}
 
 mvtheft_pg <- crime_by_county |> 
-  filter(county == "Prince George's County") |>
+  filter(county == "PRINCE GEORGE'S COUNTY") |>
   group_by(year)|> 
   summarise(total_motor_vehicle_theft = sum(motor_vehicle_theft)) |> 
   arrange(total_motor_vehicle_theft)
@@ -328,7 +329,6 @@ mvtheft_pg |>
 # Load census data from 2020, 2010, 2000. Let's look at employment status? https://acsdatacommunity.prb.org/discussion-forum/f/forum/395/acs-profile-data-variables
 # says that DP03_0002PE EMPLOYMENT STATUS!!Population 16 years and over!!In labor force
 
-
 md_2020  <- get_acs(geography='county', variables=c(adult__workforce='DP03_0002PE'), state='MD', year=2020)
 
 # Rename the estimate and moe columns. 
@@ -343,12 +343,9 @@ md_2020 <- md_2020|>
 md_2020 <- md_2020|> 
   mutate(county = str_remove(county, ", Maryland"))
 
-# Baltimore city needs a capital C. Let's just go ahead and put all the counties in all caps in both dataframes. 
+# Let's put all the counties in all caps. 
 
 md_2020 <- md_2020 |> 
- mutate(county = str_to_upper(county))
-
-crime_by_county <- crime_by_county |> 
  mutate(county = str_to_upper(county))
 
 # We need to establish what decade this info is from for our merge with crime_by_county. 
@@ -409,12 +406,13 @@ crime_by_county_2010 <- crime_by_county |>
 crime_by_county_2010 <- crime_by_county_2010 |> 
   left_join(md_2010, join_by(county))
 
-# Now let's combine 2010, 2015 and 2020. 
+# Now let's combine. 
 
 counties_census <- bind_rows(list(crime_by_county_2010, crime_by_county_2015, crime_by_county_2020))
 
+## Let's look at the relationship between property crime and employment rates. 
 
-## VISUALIZE THE RELATIONSHIP BETWEEN PROPERTY CRIME AND EMPLOYMENT! AND I STG IT BETTER BE RELATED! 
+
                              
 ```
 
