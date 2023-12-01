@@ -422,10 +422,18 @@ counties_census <- bind_rows(list(crime_by_county_2010, crime_by_county_2015, cr
 * **Analysis summary**: [Write up two to three sentences describing the results of your analysis.  Were you able to confirm the finding? If not, why not?]
 
 ```{r}
-# Put code to reverse engineer sentence here
+# Meeting w/ Derek: go to county police department and see if I can add in last couple years of Uniform Crime Reports - combine the last couple years to see if things are steady or we should be concerned 
 
-# Display results of code below this codeblock
+# Refine what i have - is there a county outlier in a particular category. 
+
+# Compare PG county and Baltimore City (same % black residents) or another 
+
+#Look at censusreporter.org 
+
+# Is it similar to other part of the state? Make a Maryland grand total colum and figure plot against PG & Baltimore. Could be either a line graph or bar charts. Line charts (19.1 thescoop.org/sports)
 
 ```
 
 -30-
+
+# Pitch MEMO 

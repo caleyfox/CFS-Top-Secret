@@ -1,0 +1,207 @@
+---
+title: "lab_10"
+author: "Caley Fox Shannon"
+date: "2023-11-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## You will need
+
+-   Our usual libraries, plus some of the map-specific ones from the pre_lab. You'll also be fetching Census data in Q3. Read the questions carefully!
+
+## Load libraries and establish settings
+
+**Task** Create a codeblock and load appropriate packages and settings for this lab.
+
+```{r}
+# Load libraries
+
+library(tidyverse)
+library(sf)
+library(janitor)
+library(tidycensus)
+library(tigris)
+```
+
+Let's explore Maryland elections, power outages and electric vehicle data and make some maps!
+
+## Questions
+
+**Q1.** Maryland voters made history last November by electing the state's first two African-American statewide office holders: Wes Moore as governor and Anthony Brown as attorney general. You want to compare the two's electoral performances. Using the `md_statewide_county.csv` file in the data folder, calculate the total number of votes for both the governor's race and the attorney general's race, then percentages for both Moore and Brown *based on the total of their respective contests*. Then calculate the difference between their percentages.
+
+Get the geometry for Maryland's counties using tigris and, joining that dataframe to your results dataframe, make a county-level map of the differences between Moore and Brown's percentages. What is the story here, and what is the county with the most interesting results?
+
+**A1.** I'm intrigued by Prince George's County and Baltimore City, where Brown performed better than Moore. Why would people who live there either care more about who the AG is, or vote for a Republican governor and then a Democratic AG?  
+
+Btw, I had found the ggtitle() and theme(axis.title.x = element_blank(), axis.title.y = element_blank()) on these sites: https://ggplot2.tidyverse.org/articles/faq-axes.html#:~:text=Remove%20x%20or%20y%20axis,to%20remove%20to%20element_blank()%20 and 
+https://environmentalcomputing.net/graphics/ggplot/ggplot-labels/.
+
+```{r}
+
+# Using the `md_statewide_county.csv` file in the data folder, calculate the total number of votes for both the governor's race and the attorney general's race, then percentages for both Moore and Brown *based on the total of their respective contests*. Then calculate the difference between their percentages.
+
+md_statewide_county <- read_csv("data/md_statewide_county.csv")
+
+md_statewide_county <- md_statewide_county |> 
+  clean_names()
+  
+md_statewide_county <- md_statewide_county |> 
+  mutate(gov_total = cox+moore+lashar+wallace+harding+sefcik+gov_writein)|> 
+  mutate(ag_total = peroutka+brown+ag_writein)|> 
+  mutate(pct_moore = (moore/gov_total)*100)|> 
+  mutate(pct_brown = (brown/ag_total)*100)
+  
+md_statewide_county <- md_statewide_county |> 
+  mutate(moore_over_brown = pct_moore - pct_brown)
+
+md_statewide_county <- md_statewide_county |> 
+  mutate(geoid = as.character(geoid))
+
+# Get the geometry for Maryland's counties using tigris
+
+counties <- counties()
+
+md_counties <- counties |>
+  filter(STATEFP == "24")
+
+md_counties <- md_counties|> 
+  clean_names()|> 
+  mutate(geoid = as.character(geoid))
+
+# Join that dataframe to your results dataframe.  
+
+md_statewide_county <- md_counties |> 
+  left_join(md_statewide_county, join_by(geoid))
+
+# Make a county-level map of the differences between Moore and Brown's percentages. 
+
+county_centroids <- st_centroid(md_counties)
+county_centroids_df <- as.data.frame(st_coordinates(county_centroids))
+county_centroids_df$name <- county_centroids$name
+
+ggplot() +
+  geom_sf(data=md_statewide_county, aes(fill=moore_over_brown)) +
+  geom_text(aes(x = X, y = Y, label = name), data = county_centroids_df, size = 3, check_overlap = TRUE) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) + 
+  ggtitle("Brown outperforms Moore among voters in PG County, Baltimore City") 
+
+# Hmm. The bay is not appearing. Guess we need the zipcode level geography. Let's copy over the md_zips folder from the prelab to this lab's data folder and read it int. 
+
+md_zips <- st_read("data/md_zips/BNDY_ZIPCodes11Digit_MDP.shp")
+
+# Let's join md_zips with md_statewide_county. 
+
+# md_statewide_county <- md_zips |> left_join(md_statewide_county, join_by(ZIPCODE1==zip))
+
+# Wait, I don't actually see a column that we can use to join these two sets, since md_statewide_county doesn't have any zip code level info. In the interest of time, I'm moving on! 
+
+```
+
+**Q2.** Make a county-level map to explore the number of customers impacted by power outages in Maryland from last March. Load the `county_outages_march2023.csv` file in the data folder and calculate a rate of customers with outages per 10,000 total customers for each county. Then join that dataframe to your Maryland counties dataframe you made in Q1 and create a county-level map of the results; you may need to tweak the fill scale to make the distinctions clearer. What's the potential story here? Given access to other months' outage data, what would your next steps be in reporting a story?
+
+**A2.** The story here is why does Talbot County have such unusually high rates of power outages? Over 100 blackouts per 10,0000 customers is alarming, that means about one percent of customers experienced a blackout. My next step would be to look closely at more detailed data on those reports to figure out what happened. Did one transformer repeatedly blow? Is an area heavily wooded, and maybe trees are falling on the lines in a storm? Have the transformers or lines not been serviced due to a lack of infrastructure funding? I'd be very curious to find out. 
+
+Btw I hate the color orange and wanted to look at another color scheme besides magma. I found viridis, which I think is quite pretty although it still has some legibility issues, on these pages: https://sjmgarnier.github.io/viridis/reference/scale_viridis.html and https://cran.r-project.org/web/packages/viridis/vignettes/intro-to-viridis.html. 
+
+```{r}
+
+# Load the `county_outages_march2023.csv` file in the data folder. 
+
+county_outages_march2023 <- read_csv("data/county_outages_march2023.csv")
+
+# Calculate a rate of customers with outages per 10,000 total customers for each county
+
+county_outages_march2023 <- county_outages_march2023 |> 
+  mutate(rate_per_10000 = (outage_customers/total_customers)*10000)
+
+# Join that dataframe to your Maryland counties dataframe you made in Q1. 
+
+county_outages_march2023 <- county_outages_march2023 |> 
+    mutate(county = str_to_upper(county))
+
+md_counties_clean <- md_counties |> 
+  mutate(county = str_remove(namelsad, " County"))
+
+md_counties_clean <- md_counties_clean |> 
+    mutate(county = str_to_upper(county))
+
+county_outages_march2023_clean <- md_counties_clean |> 
+  left_join(county_outages_march2023, join_by(county))
+
+# Create a county-level map of the results. 
+
+#install.packages("viridis")
+library(viridis)
+
+ggplot() +
+  geom_sf(data=county_outages_march2023_clean, aes(fill=rate_per_10000)) +
+  geom_text(aes(x = X, y = Y, label = name), data = county_centroids_df, size = 3, check_overlap = TRUE) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) + 
+  ggtitle("Power blackout rates soar in Talbot County") + 
+  scale_fill_viridis() + theme_bw()
+
+# I have no idea why the X and Y axis labels are back and I can't figure out how to get them out of here. If I try to delete the x=x and y=y from the aes() I get an error that they're missing. And the axix.title = element_black is not cooperating anymore. Anyways moving on! 
+
+```
+
+**Q3.** You've been assigned a story about the use of electric vehicles in Maryland and you want to make a map of the prevalence of electric vehicles in each county. Load the `ev_2020_2023.csv` file, which has the number of electric and hybrid vehicles per county from July 2020 and March 2023 and calculate a percentage change for each county (remember, that's `new-old/old`). Using the Maryland counties dataframe you made for Q1, make a county map showing the percentage change. What counties stand out to you? What questions do you have about the changes you're seeing?
+
+Next, use tidycensus to retrieve county population data for Maryland from 2021 (you did this in the pre_lab) and join it to your vehicles dataframe. HINT: you may not need to join it on the county name, and you should already have the geometry!
+
+Then, calculate a per capita rate of electric & hybrid vehicles using the March 2023 figure and the population estimate. You will need to choose the "per capita" value.
+
+Finally, make a second county map showing the per capita rate. What counties stand out on this map? How is it different from the first one you made?
+
+**A3.**
+
+```{r}
+
+# Load the `ev_2020_2023.csv` file
+
+ev_2020_2023 <- read_csv("data/ev_2020_2023.csv")
+
+# Calculate a percentage change for each county (remember, that's `new-old/old`). 
+
+ev_2020_2023 <- ev_2020_2023 |> 
+  mutate(pct_change = ((march_2023-july_2020)/july_2020)*100)|> 
+   mutate(county = str_to_upper(county))
+
+# Using the Maryland counties dataframe you made for Q1, make a county map showing the percentage change. 
+
+ev_2020_2023_with_counties <- md_counties_clean |> inner_join(ev_2020_2023, join_by(county))
+
+
+ggplot() +
+  geom_sf(data=ev_2020_2023_with_counties, aes(fill=pct_change)) +
+  geom_text(aes(x = X, y = Y, label = name), data = county_centroids_df, size = 3, check_overlap = TRUE) +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) + 
+  ggtitle("EV ownership quadrupled in Caroline County '22-23") + 
+  scale_fill_viridis() + theme_bw()
+
+# Use tidycensus to retrieve county population data for Maryland from 2021 (you did this in the pre_lab). 
+
+md_county_population <- get_acs(geography = "county",
+              variables = c(population = "B01001_001"),
+              year = 2021,
+              state = "MD",
+              geometry = TRUE)
+
+md_county_population <- md_county_population |> 
+  clean_names()
+
+# Join it to your vehicles dataframe. HINT: you may not need to join it on the county name, and you should already have the geometry!
+
+ev_2020_2023_with_pop <- md_county_population |> 
+  left_join(ev_2020_2023_with_counties, join_by(geoid))
+
+# Got this error: "Error: y should not have class sf; for spatial joins, use st_join." I cannot figure out how to get past this error. And I have run out of time. Not my best today, sorry about that. 
+
+# Calculate a per capita rate of electric & hybrid vehicles using the March 2023 figure and the population estimate. You will need to choose the "per capita" value.
+
+# Make a second county map showing the per capita rate. 
+
+```
