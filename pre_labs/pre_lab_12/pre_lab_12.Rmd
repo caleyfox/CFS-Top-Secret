@@ -242,7 +242,7 @@ tags. What does the output suggest about how many
 <ul>
 
 tags there are in the HTML source? 
-**Answer**
+**Answer** There are multiple lists. 
 
 ```{r}
 osp_results |> html_elements('li')
